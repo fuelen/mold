@@ -1,0 +1,357 @@
+# Mold Cheatsheet
+
+## Primitives
+{: .col-2}
+
+### String
+
+```elixir
+Mold.parse(:string, "  hello  ")
+#=> {:ok, "hello"}
+
+Mold.parse({:string, min_length: 3, max_length: 50}, "hello")
+#=> {:ok, "hello"}
+
+Mold.parse({:string, format: ~r/^[a-z]+$/}, "abc")
+#=> {:ok, "abc"}
+
+# empty strings → nil
+Mold.parse({:string, nilable: true}, "")
+#=> {:ok, nil}
+```
+
+### Integer
+
+```elixir
+Mold.parse(:integer, "42")
+#=> {:ok, 42}
+
+Mold.parse({:integer, min: 0, max: 100}, "50")
+#=> {:ok, 50}
+```
+
+### Float
+
+```elixir
+Mold.parse(:float, "3.14")
+#=> {:ok, 3.14}
+
+Mold.parse(:float, 42)
+#=> {:ok, 42.0}
+```
+
+### Boolean
+
+```elixir
+Mold.parse(:boolean, "true")
+#=> {:ok, true}
+
+Mold.parse(:boolean, "0")
+#=> {:ok, false}
+```
+
+### Atom
+
+```elixir
+Mold.parse({:atom, in: [:draft, :published]}, "draft")
+#=> {:ok, :draft}
+
+Mold.parse(:atom, :existing_atom)
+#=> {:ok, :existing_atom}
+```
+
+### Date & Time
+
+```elixir
+Mold.parse(:date, "2024-01-02")
+#=> {:ok, ~D[2024-01-02]}
+
+Mold.parse(:datetime, "2024-01-02T03:04:05Z")
+#=> {:ok, ~U[2024-01-02 03:04:05Z]}
+
+Mold.parse(:naive_datetime, "2024-01-02T03:04:05")
+#=> {:ok, ~N[2024-01-02 03:04:05]}
+
+Mold.parse(:time, "14:30:00")
+#=> {:ok, ~T[14:30:00]}
+```
+
+## Maps
+
+### Basic
+
+```elixir
+Mold.parse(%{name: :string, age: :integer}, %{"name" => "Alice", "age" => "25"})
+#=> {:ok, %{name: "Alice", age: 25}}
+```
+
+### Source mapping
+
+```elixir
+# Global source function (propagates to nested maps, lists, and tuples)
+schema = {%{
+  user_name: :string,
+  address: %{zip_code: :string}
+}, source: &(Atom.to_string(&1) |> Macro.camelize())}
+
+Mold.parse(schema, %{"UserName" => "Alice", "Address" => %{"ZipCode" => "10001"}})
+#=> {:ok, %{user_name: "Alice", address: %{zip_code: "10001"}}}
+```
+
+```elixir
+# Per-field source
+schema = {:map, fields: [
+  user_name: [type: :string, source: "userName"],
+  is_active: [type: :boolean, source: "isActive"]
+]}
+
+# Nested source path
+schema = {:map, fields: [
+  email: [type: :string, source: ["sender", "emailAddress", "address"]]
+]}
+
+# Access functions in source path (like get_in/2)
+schema = {:map, fields: [
+  lat: [type: :float, source: ["coords", Access.at(0)]],
+  lng: [type: :float, source: ["coords", Access.at(1)]]
+]}
+
+Mold.parse(schema, %{"coords" => [49.8, 24.0]})
+#=> {:ok, %{lat: 49.8, lng: 24.0}}
+
+# Non-atom field names with custom source
+schema = {:map,
+  source: fn {ns, name} -> "#{ns}:#{name}" end,
+  fields: [
+    {{:feature, :dark_mode}, :boolean},
+    {{:feature, :beta}, :boolean}
+  ]}
+
+Mold.parse(schema, %{"feature:dark_mode" => "true", "feature:beta" => "0"})
+#=> {:ok, %{{:feature, :dark_mode} => true, {:feature, :beta} => false}}
+```
+
+### Homogeneous maps
+
+```elixir
+Mold.parse({:map, keys: :atom, values: :string}, %{"name" => "Alice"})
+#=> {:ok, %{name: "Alice"}}
+
+Mold.parse({:map, keys: :string, values: :integer}, %{"a" => "1", "b" => "2"})
+#=> {:ok, %{"a" => 1, "b" => 2}}
+```
+
+### Optional fields
+
+```elixir
+schema = {:map, fields: [
+  name: :string,
+  bio: [type: :string, optional: true]
+]}
+
+Mold.parse(schema, %{"name" => "Alice"})
+#=> {:ok, %{name: "Alice"}}
+```
+
+### Reject invalid
+
+```elixir
+# Fields — only optional fields are dropped on error
+schema = {:map, reject_invalid: true, fields: [
+  name: :string,
+  age: [type: :integer, optional: true]
+]}
+
+Mold.parse(schema, %{"name" => "Alice", "age" => "nope"})
+#=> {:ok, %{name: "Alice"}}
+
+# Homogeneous maps — drops the key-value pair that failed
+Mold.parse({:map, keys: :string, values: :integer,
+  reject_invalid: true}, %{"a" => "1", "b" => "nope"})
+#=> {:ok, %{"a" => 1}}
+```
+
+## Lists & Tuples
+{: .col-2}
+
+### Lists
+
+```elixir
+Mold.parse([:string], ["a", "b", "c"])
+#=> {:ok, ["a", "b", "c"]}
+
+Mold.parse({:list, type: :integer,
+  min_length: 1, max_length: 10}, [1, 2, 3])
+#=> {:ok, [1, 2, 3]}
+
+# Drop invalid items
+Mold.parse({[:string], reject_invalid: true},
+  ["a", nil, "b"])
+#=> {:ok, ["a", "b"]}
+```
+
+### Tuples
+
+```elixir
+Mold.parse({:tuple, elements: [:string, :integer]},
+  ["Alice", "25"])
+#=> {:ok, {"Alice", 25}}
+
+# Also accepts tuples as input
+Mold.parse({:tuple, elements: [:string, :integer]},
+  {"Alice", "25"})
+#=> {:ok, {"Alice", 25}}
+```
+
+## Advanced
+{: .col-2}
+
+### Union types
+
+```elixir
+schema = {:union,
+  by: fn value -> value["type"] end,
+  of: %{
+    "user" => %{name: :string},
+    "bot"  => %{version: :integer}
+  }}
+
+Mold.parse(schema, %{"type" => "user", "name" => "Alice"})
+#=> {:ok, %{name: "Alice"}}
+```
+
+### Recursive types
+
+```elixir
+defmodule Comment do
+  def parse_comment(value) do
+    Mold.parse(%{
+      text: :string,
+      replies: {[&parse_comment/1], nilable: true}
+    }, value)
+  end
+end
+```
+
+### Custom parse functions
+
+```elixir
+email_type = fn value ->
+  if is_binary(value) and String.contains?(value, "@"),
+    do: {:ok, String.downcase(value)},
+    else: {:error, :invalid_email}
+end
+
+Mold.parse(email_type, "USER@EXAMPLE.COM")
+#=> {:ok, "user@example.com"}
+
+# Standard library functions work too
+Mold.parse(&Version.parse/1, "1.0.0")
+#=> {:ok, %Version{major: 1, minor: 0, patch: 0}}
+```
+
+### Default values
+
+```elixir
+Mold.parse({:integer, default: 0}, nil)
+#=> {:ok, 0}
+
+# Lazy evaluation
+Mold.parse({:string, default: fn -> "gen" end}, nil)
+#=> {:ok, "gen"}
+
+# MFA tuple
+Mold.parse({:integer,
+  default: {Enum, :count, [[1, 2, 3]]}}, nil)
+#=> {:ok, 3}
+```
+
+### Transform & validate
+
+```elixir
+Mold.parse({:string,
+  transform: &String.downcase/1}, "HELLO")
+#=> {:ok, "hello"}
+
+Mold.parse({:integer,
+  validate: &(&1 > 0)}, "-1")
+#=> {:error, [%Mold.Error{
+#=>   reason: :validation_failed, ...}]}
+
+# Execution order: parse → transform → in → validate
+```
+
+### Function decorator
+
+```elixir
+defmodule MyApp.Billing do
+  use Mold.Decorator
+
+  @parse handle_payment(%{id: :string, amount: :integer})
+  def handle_payment(payment) do
+    {:ok, payment}
+  end
+
+  @parse! refund(&Money.parse/1, :integer)
+  def refund(amount, payment_id) do
+    {payment_id, amount}
+  end
+end
+
+MyApp.Billing.handle_payment(%{"id" => "ch_1", "amount" => "1000"})
+#=> {:ok, %{id: "ch_1", amount: 1000}}
+
+MyApp.Billing.refund("$5.00", "42")
+#=> {42, Money.new(500, :USD)}
+```
+
+## Types reference
+
+### All types
+
+| Type | Input | Output |
+|---|---|---|
+| `:string` | binary | `String.t()` |
+| `:atom` | atom, string | `atom()` |
+| `:boolean` | boolean, `"true"`/`"false"`, `"1"`/`"0"`, `1`/`0` | `boolean()` |
+| `:integer` | integer, string | `integer()` |
+| `:float` | float, integer, string | `float()` |
+| `:date` | `Date.t()`, ISO8601 string | `Date.t()` |
+| `:datetime` | `DateTime.t()`, ISO8601 string | `DateTime.t()` |
+| `:naive_datetime` | `NaiveDateTime.t()`, ISO8601 string | `NaiveDateTime.t()` |
+| `:time` | `Time.t()`, ISO8601 string | `Time.t()` |
+| `:map` | map | map (passthrough) |
+| `{:map, fields: [...]}` | map | map with field name keys |
+| `{:map, keys: t, values: t}` | map | map with parsed keys and values |
+| `:list` | list | list (passthrough) |
+| `{:list, type: t}` | list | list of parsed values |
+| `:tuple` | tuple, list | tuple (passthrough) |
+| `{:tuple, elements: [t]}` | tuple, list | tuple of parsed values |
+| `{:union, by: fn, of: %{}}` | any | depends on matched type |
+| `fn v -> {:ok, v} \| {:error, r} \| :error end` | any | any |
+
+## Options
+{: .col-2}
+
+### Shared (all types)
+
+| Option | Description |
+|---|---|
+| `nilable: true` | Accept `nil` as valid |
+| `default: v \| fn \| mfa` | Substitute when nil (implies `nilable`) |
+| `in: enumerable` | Validate membership |
+| `transform: fn` | Transform parsed value (before `in` and `validate`) |
+| `validate: fn` | Must return `true` (after `transform` and `in`) |
+
+### Type-specific
+
+| Option | Applies to |
+|---|---|
+| `min: n` / `max: n` | `:integer`, `:float` |
+| `min_length: n` / `max_length: n` | `:string`, `:list` |
+| `trim: true` (default) | `:string` |
+| `format: ~r//` | `:string` |
+| `source: fn` | `:map` |
+| `source: key \| [path]` | map fields (path steps: strings, `Access` fns) |
+| `optional: true` | map fields |
+| `reject_invalid: true` | `:list`, `:map` |
