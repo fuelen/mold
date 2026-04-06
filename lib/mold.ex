@@ -455,6 +455,9 @@ defmodule Mold do
            transform: transform(),
            validate: validate()}
 
+  @type source_step :: term() | Access.access_fun(any(), any())
+  @type source_path :: source_step | [source_step]
+
   @typedoc group: "Types: Collections"
   @typedoc """
   Map type. Three forms:
@@ -595,9 +598,6 @@ defmodule Mold do
       iex> Mold.parse({:map, keys: :string, values: :integer, reject_invalid: true}, %{"a" => "1", "b" => "nope"})
       {:ok, %{"a" => 1}}
   """
-  @type source_step :: term() | Access.access_fun(any(), any())
-  @type source_path :: source_step | [source_step]
-
   @type map_type() ::
           {:map,
            fields: [
