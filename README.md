@@ -55,6 +55,8 @@ Mold.parse(%{items: [%{name: :string}]}, %{"items" => [%{"name" => "A"}, %{}]})
 #=> {:error, [%Mold.Error{reason: {:missing_field, "name"}, trace: ["items", 1], ...}]}
 ```
 
+See the [Cheatsheet](https://hexdocs.pm/mold/cheatsheet.html) for more examples.
+
 ## Types
 
 A Mold type is plain Elixir data. Every type is one of three things:
