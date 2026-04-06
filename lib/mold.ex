@@ -56,17 +56,6 @@ defmodule Mold do
 
   Errors include a `:trace` that points to the exact failing path (list indexes and/or map keys).
 
-  ## Function decorator
-
-  `Mold.Decorator` provides `@parse` / `@parse!` annotations that auto-parse
-  function arguments. See `Mold.Decorator` for details.
-
-      defmodule MyApp.Billing do
-        use Mold.Decorator
-
-        @parse handle_payment(%{id: :string, amount: :integer})
-        def handle_payment(payment), do: {:ok, payment}
-      end
   """
 
   @moduledoc groups: [

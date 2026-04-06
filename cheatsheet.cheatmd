@@ -281,30 +281,6 @@ Mold.parse({:integer,
 # Execution order: parse → transform → in → validate
 ```
 
-### Function decorator
-
-```elixir
-defmodule MyApp.Billing do
-  use Mold.Decorator
-
-  @parse handle_payment(%{id: :string, amount: :integer})
-  def handle_payment(payment) do
-    {:ok, payment}
-  end
-
-  @parse! refund(&Money.parse/1, :integer)
-  def refund(amount, payment_id) do
-    {payment_id, amount}
-  end
-end
-
-MyApp.Billing.handle_payment(%{"id" => "ch_1", "amount" => "1000"})
-#=> {:ok, %{id: "ch_1", amount: 1000}}
-
-MyApp.Billing.refund("$5.00", "42")
-#=> {42, Money.new(500, :USD)}
-```
-
 ## Types reference
 
 ### All types
