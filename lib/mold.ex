@@ -40,9 +40,10 @@ defmodule Mold do
   All types accept the following options:
 
     * `:nilable` – allows `nil` as a valid value.
-    * `:default` – substitutes `value` when nil. Accepts a static value,
+    * `:default` – substitutes `value` when nil or missing. Accepts a static value,
       a zero-arity function, or an MFA tuple `{mod, fun, args}` for lazy evaluation.
-      Implies nilable. Note: a 3-tuple `{atom, atom, list}` is always treated as MFA.
+      When combined with `nilable`, explicit `nil` is preserved and the default only
+      applies to missing fields. Note: a 3-tuple `{atom, atom, list}` is always treated as MFA.
       To use such a tuple as a static default, wrap it: `default: fn -> {Mod, :fun, []} end`.
     * `:in` – validates that the parsed value is a member of the given `t:Enumerable.t/0`
       (list, range, MapSet, etc.).
@@ -1386,8 +1387,8 @@ defmodule Mold do
 
   defp handle_nil_value(value, opts) do
     cond do
-      Keyword.has_key?(opts, :default) -> {:ok, resolve_default(opts[:default])}
       Keyword.get(opts, :nilable, false) -> {:ok, nil}
+      Keyword.has_key?(opts, :default) -> {:ok, resolve_default(opts[:default])}
       true -> {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: value})]}
     end
   end

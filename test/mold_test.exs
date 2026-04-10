@@ -1189,6 +1189,16 @@ defmodule MoldTest do
       assert Mold.parse(schema, %{}) == {:ok, %{}}
       assert Mold.parse(schema, %{"bio" => nil}) == {:ok, %{bio: "none"}}
       assert Mold.parse(schema, %{"bio" => "hello"}) == {:ok, %{bio: "hello"}}
+
+      # nilable + default: explicit nil is preserved, default only for missing keys
+      assert Mold.parse({:integer, nilable: true, default: 2}, nil) == {:ok, nil}
+      assert Mold.parse({:string, nilable: true, default: "fallback"}, nil) == {:ok, nil}
+
+      schema = %{score: {:integer, nilable: true, default: 0}}
+
+      assert Mold.parse(schema, %{"score" => nil}) == {:ok, %{score: nil}}
+      assert Mold.parse(schema, %{"score" => "5"}) == {:ok, %{score: 5}}
+      assert Mold.parse(schema, %{}) == {:ok, %{score: 0}}
     end
   end
 

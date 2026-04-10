@@ -264,6 +264,20 @@ Mold.parse({:string, default: fn -> "gen" end}, nil)
 Mold.parse({:integer,
   default: {Enum, :count, [[1, 2, 3]]}}, nil)
 #=> {:ok, 3}
+
+# nilable + default: nil for missing,
+# nil preserved when explicit
+# (like `value: data["value"]` in plain Elixir)
+schema = %{score: {:integer, nilable: true, default: nil}}
+
+Mold.parse(schema, %{})
+#=> {:ok, %{score: nil}}
+
+Mold.parse(schema, %{"score" => nil})
+#=> {:ok, %{score: nil}}
+
+Mold.parse(schema, %{"score" => "5"})
+#=> {:ok, %{score: 5}}
 ```
 
 ### Transform & validate
@@ -314,7 +328,7 @@ Mold.parse({:integer,
 | Option | Description |
 |---|---|
 | `nilable: true` | Accept `nil` as valid |
-| `default: v \| fn \| mfa` | Substitute when nil (implies `nilable`) |
+| `default: v \| fn \| mfa` | Substitute when nil or missing (`nilable` takes precedence) |
 | `in: enumerable` | Validate membership |
 | `transform: fn` | Transform parsed value (before `in` and `validate`) |
 | `validate: fn` | Must return `true` (after `transform` and `in`) |
