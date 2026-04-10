@@ -26,7 +26,7 @@ defmodule MoldTest do
                    """
                    Unable to parse data
 
-                   :unexpected_nil at ["name"] (value: nil)
+                   :unexpected_nil at [:name] (value: nil)
                    """,
                    fn -> Mold.parse!(schema, %{"name" => nil}) end
     end
@@ -44,8 +44,8 @@ defmodule MoldTest do
                    Unable to parse data
 
                    2 errors:
-                     1. :unexpected_type at ["name"] (value: 123)
-                     2. :invalid_format at ["age"] (value: "abc")
+                     1. :unexpected_type at [:name] (value: 123)
+                     2. :invalid_format at [:age] (value: "abc")
                    """,
                    fn -> Mold.parse!(schema, %{"name" => 123, "age" => "abc"}) end
     end
@@ -472,7 +472,7 @@ defmodule MoldTest do
                   Mold.Error.new(%{
                     reason: :unknown_atom,
                     value: "nonexistent_atom_zzz",
-                    trace: ["nonexistent_atom_zzz"]
+                    trace: []
                   })
                 ]}
     end
@@ -494,13 +494,13 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: {:missing_field, "name"},
-                    trace: [],
+                    trace: [:name],
                     value: %{name: "hello"}
                   })
                 ]}
 
       assert Mold.parse({:map, fields: [name: :string]}, %{"name" => nil}) ==
-               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: ["name"], value: nil})]}
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: [:name], value: nil})]}
 
       assert Mold.parse({:map, fields: [name: [type: :string, source: "name"]]}, %{
                "name" => "hello"
@@ -512,7 +512,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: {:missing_field, "name"},
-                    trace: [],
+                    trace: [:name],
                     value: %{name: "hello"}
                   })
                 ]}
@@ -529,7 +529,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: {:missing_field, "details"},
-                    trace: [],
+                    trace: [:name],
                     value: %{"name" => "hello"}
                   })
                 ]}
@@ -538,7 +538,7 @@ defmodule MoldTest do
                "details" => "hello"
              }) ==
                {:error,
-                [Mold.Error.new(%{reason: :unexpected_type, trace: ["details"], value: "hello"})]}
+                [Mold.Error.new(%{reason: :unexpected_type, trace: [:name], value: "hello"})]}
 
       assert Mold.parse({:map, fields: [name: [type: :string, source: ["details", "name"]]]}, %{
                "details" => %{}
@@ -547,7 +547,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: {:missing_field, "name"},
-                    trace: ["details"],
+                    trace: [:name],
                     value: %{}
                   })
                 ]}
@@ -560,7 +560,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: :invalid_format,
-                    trace: ["date"],
+                    trace: [:date],
                     value: "invalid-2023-06-22"
                   })
                 ]}
@@ -576,7 +576,7 @@ defmodule MoldTest do
 
       assert Mold.parse(schema, %{}) ==
                {:error,
-                [Mold.Error.new(%{reason: {:missing_field, "name"}, trace: [], value: %{}})]}
+                [Mold.Error.new(%{reason: {:missing_field, "name"}, trace: [:name], value: %{}})]}
     end
 
     test ":map collects all errors" do
@@ -591,8 +591,8 @@ defmodule MoldTest do
       assert Mold.parse(schema, %{"name" => 123, "age" => "abc", "email" => "ok"}) ==
                {:error,
                 [
-                  Mold.Error.new(%{reason: :unexpected_type, trace: ["name"], value: 123}),
-                  Mold.Error.new(%{reason: :invalid_format, trace: ["age"], value: "abc"})
+                  Mold.Error.new(%{reason: :unexpected_type, trace: [:name], value: 123}),
+                  Mold.Error.new(%{reason: :invalid_format, trace: [:age], value: "abc"})
                 ]}
     end
 
@@ -610,7 +610,7 @@ defmodule MoldTest do
                {:ok, %{name: "Alice", bio: "hello"}}
 
       assert Mold.parse(schema, %{"name" => "Alice", "bio" => nil}) ==
-               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: ["bio"], value: nil})]}
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: [:bio], value: nil})]}
 
       schema =
         {:map, fields: [bio: [type: {:string, nilable: true}, source: "bio", optional: true]]}
@@ -623,8 +623,7 @@ defmodule MoldTest do
       assert Mold.parse(schema, %{}) == {:ok, %{}}
 
       assert Mold.parse(schema, %{"age" => "abc"}) ==
-               {:error,
-                [Mold.Error.new(%{reason: :invalid_format, trace: ["age"], value: "abc"})]}
+               {:error, [Mold.Error.new(%{reason: :invalid_format, trace: [:age], value: "abc"})]}
     end
 
     test ":map reject_invalid with fields" do
@@ -654,15 +653,14 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: {:missing_field, "name"},
-                    trace: [],
+                    trace: [:name],
                     value: %{"age" => "25"}
                   })
                 ]}
 
       # required fields with invalid values still fail
       assert Mold.parse(schema, %{"name" => 123, "age" => "nope"}) ==
-               {:error,
-                [Mold.Error.new(%{reason: :unexpected_type, trace: ["name"], value: 123})]}
+               {:error, [Mold.Error.new(%{reason: :unexpected_type, trace: [:name], value: 123})]}
 
       # without reject_invalid, optional fields with invalid values are errors
       schema_strict =
@@ -674,7 +672,7 @@ defmodule MoldTest do
 
       assert Mold.parse(schema_strict, %{"name" => "Alice", "age" => "nope"}) ==
                {:error,
-                [Mold.Error.new(%{reason: :invalid_format, trace: ["age"], value: "nope"})]}
+                [Mold.Error.new(%{reason: :invalid_format, trace: [:age], value: "nope"})]}
     end
 
     test ":map reject_invalid with keys/values" do
@@ -709,7 +707,7 @@ defmodule MoldTest do
                {:ok, %{name: "Alice", age: 25}}
 
       assert Mold.parse(%{name: :string}, %{"name" => nil}) ==
-               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: ["name"], value: nil})]}
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, trace: [:name], value: nil})]}
     end
 
     test "list shortcut []" do
@@ -738,7 +736,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: :unexpected_nil,
-                    trace: ["items", 1, "name"],
+                    trace: [:items, 1, :name],
                     value: nil
                   })
                 ]}
@@ -746,12 +744,12 @@ defmodule MoldTest do
       # error trace through {map_shortcut, opts}
       assert Mold.parse(%{data: {%{name: :string}, nilable: true}}, %{"data" => %{"name" => nil}}) ==
                {:error,
-                [Mold.Error.new(%{reason: :unexpected_nil, trace: ["data", "name"], value: nil})]}
+                [Mold.Error.new(%{reason: :unexpected_nil, trace: [:data, :name], value: nil})]}
 
       # error trace through {list_shortcut, opts}
       assert Mold.parse(%{items: {[:integer], reject_invalid: false}}, %{"items" => [1, "abc"]}) ==
                {:error,
-                [Mold.Error.new(%{reason: :invalid_format, trace: ["items", 1], value: "abc"})]}
+                [Mold.Error.new(%{reason: :invalid_format, trace: [:items, 1], value: "abc"})]}
     end
 
     test "shortcuts in field opts type:" do
@@ -958,7 +956,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: :unexpected_nil,
-                    trace: ["items", 1, "name"],
+                    trace: [:items, 1, :name],
                     value: nil
                   })
                 ]}
@@ -1018,7 +1016,7 @@ defmodule MoldTest do
                   Mold.Error.new(%{
                     reason: :unexpected_type,
                     value: "not a tuple",
-                    trace: ["data"]
+                    trace: [:x]
                   })
                 ]}
 
@@ -1270,7 +1268,7 @@ defmodule MoldTest do
                 [
                   Mold.Error.new(%{
                     reason: :invalid_format,
-                    trace: ["dateTimes", 1, "dateTime"],
+                    trace: [:datetimes, 1, :datetime],
                     value: "invalid"
                   })
                 ]}
@@ -1333,7 +1331,7 @@ defmodule MoldTest do
                   ]
                 }}
 
-      assert {:error, [%Mold.Error{trace: ["replies", 0, "replies", 0, "text"]} | _]} =
+      assert {:error, [%Mold.Error{trace: [:replies, 0, :replies, 0, :text]} | _]} =
                Mold.RecursiveFixture.parse_comment(%{
                  "text" => "ok",
                  "replies" => [
@@ -1353,7 +1351,7 @@ defmodule MoldTest do
 
       assert Mold.parse(schema, %{"data" => %{"name" => 123}}) ==
                {:error,
-                [Mold.Error.new(%{reason: :unexpected_type, value: 123, trace: ["data", "name"]})]}
+                [Mold.Error.new(%{reason: :unexpected_type, value: 123, trace: [:data, :name]})]}
 
       assert Mold.parse(schema, %{"data" => nil}) == {:ok, %{data: nil}}
     end
@@ -1364,7 +1362,7 @@ defmodule MoldTest do
 
       assert Mold.parse(schema, %{"tags" => ["ok", 123]}) ==
                {:error,
-                [Mold.Error.new(%{reason: :unexpected_type, value: 123, trace: ["tags", 1]})]}
+                [Mold.Error.new(%{reason: :unexpected_type, value: 123, trace: [:tags, 1]})]}
     end
 
     test "error trace with list shortcut + opts as field type" do
@@ -1397,7 +1395,7 @@ defmodule MoldTest do
       parse_fn = fn _value -> {:error, [Mold.Error.new(%{reason: :custom_error, value: nil})]} end
 
       assert Mold.parse(%{field: parse_fn}, %{"field" => "x"}) ==
-               {:error, [Mold.Error.new(%{reason: :custom_error, value: nil, trace: ["field"]})]}
+               {:error, [Mold.Error.new(%{reason: :custom_error, value: nil, trace: [:field]})]}
     end
 
     test "custom function returning bare :error" do
@@ -1575,6 +1573,21 @@ defmodule MoldTest do
     test "custom function passthrough reason" do
       assert {:error, [%Mold.Error{reason: :my_custom_reason}]} =
                Mold.parse(fn _ -> {:error, :my_custom_reason} end, "x")
+    end
+  end
+
+  describe "trace" do
+    test "Access functions in source produce clean schema trace" do
+      schema =
+        {:map,
+         fields: [
+           lat: [type: :float, source: ["coords", Access.at(0)]]
+         ]}
+
+      input = %{"coords" => ["not_a_float"]}
+      {:error, errors} = Mold.parse(schema, input)
+
+      assert [%{trace: [:lat]}] = errors
     end
   end
 end

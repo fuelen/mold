@@ -55,7 +55,7 @@ defmodule Mold do
 
   Execution order: parse → transform → in → validate.
 
-  Errors include a `:trace` that points to the exact failing path (list indexes and/or map keys).
+  Errors include a `:trace` that points to the exact failing path (schema field names, list indexes, and/or dynamic map keys).
 
   """
 
@@ -544,7 +544,7 @@ defmodule Mold do
       {:ok, %{name: "Alice", bio: "hello"}}
       iex> # optional omits the field when missing, but nil still fails — use nilable on the type
       iex> Mold.parse(schema, %{"name" => "Alice", "bio" => nil})
-      {:error, [%Mold.Error{reason: :unexpected_nil, value: nil, trace: ["bio"]}]}
+      {:error, [%Mold.Error{reason: :unexpected_nil, value: nil, trace: [:bio]}]}
 
   When a field is both `optional: true` and has a `default`, `optional` takes priority
   for missing fields — the field is omitted from the result. The `default` only applies
@@ -561,7 +561,7 @@ defmodule Mold do
   Missing fields are errors:
 
       iex> Mold.parse(%{name: :string}, %{})
-      {:error, [%Mold.Error{reason: {:missing_field, "name"}, value: %{}, trace: []}]}
+      {:error, [%Mold.Error{reason: {:missing_field, "name"}, value: %{}, trace: [:name]}]}
 
   Homogeneous maps with `keys`/`values`:
 
@@ -581,7 +581,7 @@ defmodule Mold do
       iex> Mold.parse(schema, %{"name" => "Alice", "age" => "nope", "bio" => nil})
       {:ok, %{name: "Alice"}}
       iex> Mold.parse(schema, %{"age" => "25"})
-      {:error, [%Mold.Error{reason: {:missing_field, "name"}, value: %{"age" => "25"}, trace: []}]}
+      {:error, [%Mold.Error{reason: {:missing_field, "name"}, value: %{"age" => "25"}, trace: [:name]}]}
 
   Reject invalid — for `keys`/`values`, drops the key-value pair that failed:
 
@@ -806,7 +806,7 @@ defmodule Mold do
 
   def parse({:map, opts}, data) do
     handle_shared_opts(data, opts, &is_map/1, fn data ->
-      trace = opts[:__trace__] || []
+      trace_acc = opts[:__trace__] || []
       reject_invalid = Keyword.get(opts, :reject_invalid, false)
 
       source_fn =
@@ -838,8 +838,8 @@ defmodule Mold do
 
               case fetch_in(data, source) do
                 {:ok, value} ->
-                  trace = trace ++ source
-                  type = put_trace_to_container_types(opts[:type], trace)
+                  trace_acc = [name | trace_acc]
+                  type = put_trace_to_container_types(opts[:type], trace_acc)
 
                   case parse(type, value) do
                     {:ok, value} ->
@@ -849,7 +849,7 @@ defmodule Mold do
                       if reject_invalid and opts[:optional] do
                         {acc, errors}
                       else
-                        field_errors = add_trace_to_errors(field_errors, trace)
+                        field_errors = add_trace_to_errors(field_errors, trace_acc)
                         {acc, errors ++ field_errors}
                       end
                   end
@@ -863,7 +863,9 @@ defmodule Mold do
                         {Map.put(acc, name, default), errors}
 
                       :error ->
-                        {acc, errors ++ [%{error | trace: trace ++ error.trace}]}
+                        {acc,
+                         errors ++
+                           [%{error | trace: Enum.reverse([name | trace_acc])}]}
                     end
                   end
               end
@@ -879,18 +881,27 @@ defmodule Mold do
           case {Keyword.fetch(opts, :keys), Keyword.fetch(opts, :values)} do
             {{:ok, key_type}, {:ok, value_type}} ->
               Enum.reduce_while(data, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
-                key_trace = trace ++ [key]
+                case parse(key_type, key) do
+                  {:ok, parsed_key} ->
+                    key_trace_acc = [parsed_key | trace_acc]
 
-                with {:ok, parsed_key} <- parse(key_type, key),
-                     {:ok, parsed_value} <-
-                       parse(put_trace_to_container_types(value_type, key_trace), value) do
-                  {:cont, {:ok, Map.put(acc, parsed_key, parsed_value)}}
-                else
+                    case parse(put_trace_to_container_types(value_type, key_trace_acc), value) do
+                      {:ok, parsed_value} ->
+                        {:cont, {:ok, Map.put(acc, parsed_key, parsed_value)}}
+
+                      {:error, errors} ->
+                        if reject_invalid do
+                          {:cont, {:ok, acc}}
+                        else
+                          {:halt, {:error, add_trace_to_errors(errors, key_trace_acc)}}
+                        end
+                    end
+
                   {:error, errors} ->
                     if reject_invalid do
                       {:cont, {:ok, acc}}
                     else
-                      {:halt, {:error, add_trace_to_errors(errors, key_trace)}}
+                      {:halt, {:error, add_trace_to_errors(errors, trace_acc)}}
                     end
                 end
               end)
@@ -1052,22 +1063,22 @@ defmodule Mold do
                })
              ]}
           else
-            trace = opts[:__trace__] || []
+            trace_acc = opts[:__trace__] || []
 
             {result, errors} =
               elements
               |> Enum.zip(list)
               |> Enum.with_index()
               |> Enum.reduce({[], []}, fn {{type, val}, index}, {acc, errors} ->
-                trace = trace ++ [index]
-                type = put_trace_to_container_types(type, trace)
+                trace_acc = [index | trace_acc]
+                type = put_trace_to_container_types(type, trace_acc)
 
                 case parse(type, val) do
                   {:ok, val} ->
                     {[val | acc], errors}
 
                   {:error, el_errors} ->
-                    {acc, errors ++ add_trace_to_errors(el_errors, trace)}
+                    {acc, errors ++ add_trace_to_errors(el_errors, trace_acc)}
                 end
               end)
 
@@ -1137,14 +1148,14 @@ defmodule Mold do
       case Keyword.fetch(opts, :type) do
         {:ok, type} ->
           reject_invalid = Keyword.get(opts, :reject_invalid, false)
-          trace = opts[:__trace__] || []
+          trace_acc = opts[:__trace__] || []
 
           result =
             value
             |> Enum.with_index()
             |> Enum.reduce_while({:ok, []}, fn {value, index}, {:ok, acc} ->
-              trace = trace ++ [index]
-              type = put_trace_to_container_types(type, trace)
+              trace_acc = [index | trace_acc]
+              type = put_trace_to_container_types(type, trace_acc)
 
               case parse(type, value) do
                 {:ok, value} ->
@@ -1154,7 +1165,7 @@ defmodule Mold do
                   if reject_invalid do
                     {:cont, {:ok, acc}}
                   else
-                    {:halt, {:error, add_trace_to_errors(errors, trace)}}
+                    {:halt, {:error, add_trace_to_errors(errors, trace_acc)}}
                   end
               end
             end)
@@ -1360,7 +1371,9 @@ defmodule Mold do
     end
   end
 
-  defp add_trace_to_errors(errors, trace) do
+  defp add_trace_to_errors(errors, trace_acc) do
+    trace = Enum.reverse(trace_acc)
+
     Enum.map(errors, fn
       %Mold.Error{trace: nil} = error -> %{error | trace: trace}
       error -> error
@@ -1369,7 +1382,9 @@ defmodule Mold do
 
   defp prepend_trace(errors, nil), do: errors
 
-  defp prepend_trace(errors, trace) do
+  defp prepend_trace(errors, trace_acc) do
+    trace = Enum.reverse(trace_acc)
+
     Enum.map(errors, fn
       %Mold.Error{trace: nil} = error -> %{error | trace: trace}
       %Mold.Error{trace: existing} = error -> %{error | trace: trace ++ existing}

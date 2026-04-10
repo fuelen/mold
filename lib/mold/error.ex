@@ -6,7 +6,7 @@ defmodule Mold.Error do
 
   - `:reason` – atom or term explaining the failure (see Reasons below).
   - `:value` – the offending value.
-  - `:trace` – path to the failing value (list indexes and/or map keys), or `nil`.
+  - `:trace` – path to the failing value (schema field names, list indexes, and/or dynamic map keys), or `nil`.
 
   ## Reasons
 
