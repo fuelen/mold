@@ -8,6 +8,8 @@ defmodule MoldTest do
   use ExUnit.Case, async: true
   doctest Mold
 
+  defp camelize(field), do: field |> Atom.to_string() |> Macro.camelize()
+
   describe "parse!/2" do
     test "single error without trace" do
       assert_raise Mold.Error,
@@ -780,7 +782,7 @@ defmodule MoldTest do
       # camelCase keys
       schema =
         {:map,
-         source: &(Atom.to_string(&1) |> Macro.camelize()),
+         source: &camelize/1,
          fields: [
            user_name: :string,
            is_active: :boolean
@@ -873,6 +875,24 @@ defmodule MoldTest do
       assert Mold.parse(schema, %{"pair" => [%{"name" => "A"}, %{"name" => "B"}]}) ==
                {:ok, %{pair: {%{name: "A"}, %{name: "B"}}}}
 
+      # propagates through unions
+      schema =
+        {%{
+           item:
+             {:union,
+              by: fn value -> value["Type"] end,
+              of: %{
+                "user" => %{user_name: :string},
+                "bot" => %{bot_version: :integer}
+              }}
+         }, source: &camelize/1}
+
+      assert Mold.parse(schema, %{"Item" => %{"Type" => "user", "UserName" => "Alice"}}) ==
+               {:ok, %{item: %{user_name: "Alice"}}}
+
+      assert Mold.parse(schema, %{"Item" => %{"Type" => "bot", "BotVersion" => "3"}}) ==
+               {:ok, %{item: %{bot_version: 3}}}
+
       # with shortcut syntax
       schema = {%{name: :string, age: :integer}, source: &Atom.to_string/1}
 
@@ -960,6 +980,29 @@ defmodule MoldTest do
                     value: nil
                   })
                 ]}
+    end
+
+    test "source on containers" do
+      # source: on list
+      schema =
+        {[%{user_name: :string}], source: &camelize/1}
+
+      assert Mold.parse(schema, [%{"UserName" => "A"}, %{"UserName" => "B"}]) ==
+               {:ok, [%{user_name: "A"}, %{user_name: "B"}]}
+
+      # source: on list propagates through nested containers
+      schema =
+        {[%{tag_list: [%{tag_label: :string}]}], source: &camelize/1}
+
+      assert Mold.parse(schema, [%{"TagList" => [%{"TagLabel" => "x"}]}]) ==
+               {:ok, [%{tag_list: [%{tag_label: "x"}]}]}
+
+      # source: on tuple
+      schema =
+        {:tuple, elements: [%{user_name: :string}, %{user_age: :integer}], source: &camelize/1}
+
+      assert Mold.parse(schema, [%{"UserName" => "A"}, %{"UserAge" => "25"}]) ==
+               {:ok, {%{user_name: "A"}, %{user_age: 25}}}
     end
 
     test "source with Access functions" do
@@ -1082,10 +1125,58 @@ defmodule MoldTest do
            value when is_list(value) -> :list
            value when is_binary(value) -> :single
          end,
-         of: %{list: {:list, type: :string}, single: :string}}
+         of: %{list: [:string], single: :string}}
 
       assert Mold.parse(schema, ["a", "b"]) == {:ok, ["a", "b"]}
       assert Mold.parse(schema, "hello") == {:ok, "hello"}
+
+      # source: propagates to variant maps
+      schema =
+        {:union,
+         source: &camelize/1,
+         by: fn value -> value["Type"] end,
+         of: %{
+           "user" => %{user_name: :string},
+           "bot" => %{bot_version: :integer}
+         }}
+
+      assert Mold.parse(schema, %{"Type" => "user", "UserName" => "Alice"}) ==
+               {:ok, %{user_name: "Alice"}}
+
+      assert Mold.parse(schema, %{"Type" => "bot", "BotVersion" => "3"}) ==
+               {:ok, %{bot_version: 3}}
+
+      # source: variant map can override
+      schema =
+        {:union,
+         source: &camelize/1,
+         by: fn value -> value["Type"] end,
+         of: %{
+           "user" => %{user_name: :string},
+           "bot" => {:map, source: & &1, fields: [bot_version: :integer]}
+         }}
+
+      assert Mold.parse(schema, %{"Type" => "user", "UserName" => "Alice"}) ==
+               {:ok, %{user_name: "Alice"}}
+
+      # without override, camelize would look for "BotVersion" — but & &1 keeps :bot_version
+      assert Mold.parse(schema, %{"Type" => "bot", bot_version: 3}) ==
+               {:ok, %{bot_version: 3}}
+
+      # source: propagates through nested containers inside union
+      schema =
+        {:union,
+         source: &camelize/1,
+         by: fn value -> value["Type"] end,
+         of: %{
+           "team" => %{team_members: [%{user_name: :string}]}
+         }}
+
+      assert Mold.parse(schema, %{
+               "Type" => "team",
+               "TeamMembers" => [%{"UserName" => "A"}]
+             }) ==
+               {:ok, %{team_members: [%{user_name: "A"}]}}
     end
 
     test ":in" do

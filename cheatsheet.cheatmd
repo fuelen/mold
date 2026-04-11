@@ -88,7 +88,7 @@ Mold.parse(%{name: :string, age: :integer}, %{"name" => "Alice", "age" => "25"})
 ### Source mapping
 
 ```elixir
-# Global source function (propagates to nested maps, lists, and tuples)
+# Global source function (propagates to nested maps, lists, tuples, and unions)
 schema = {%{
   user_name: :string,
   address: %{zip_code: :string}
@@ -188,6 +188,13 @@ Mold.parse({:list, type: :integer,
 Mold.parse({[:string], reject_invalid: true},
   ["a", nil, "b"])
 #=> {:ok, ["a", "b"]}
+
+# source: propagates to inner maps
+Mold.parse(
+  {[%{user_name: :string}],
+   source: &(Atom.to_string(&1) |> Macro.camelize())},
+  [%{"UserName" => "Alice"}, %{"UserName" => "Bob"}])
+#=> {:ok, [%{user_name: "Alice"}, %{user_name: "Bob"}]}
 ```
 
 ### Tuples
@@ -201,6 +208,14 @@ Mold.parse({:tuple, elements: [:string, :integer]},
 Mold.parse({:tuple, elements: [:string, :integer]},
   {"Alice", "25"})
 #=> {:ok, {"Alice", 25}}
+
+# source: propagates to element maps
+Mold.parse(
+  {:tuple,
+   elements: [%{user_name: :string}, %{user_age: :integer}],
+   source: &(Atom.to_string(&1) |> Macro.camelize())},
+  [%{"UserName" => "Alice"}, %{"UserAge" => "25"}])
+#=> {:ok, {%{user_name: "Alice"}, %{user_age: 25}}}
 ```
 
 ## Advanced
@@ -218,6 +233,18 @@ schema = {:union,
 
 Mold.parse(schema, %{"type" => "user", "name" => "Alice"})
 #=> {:ok, %{name: "Alice"}}
+
+# source: propagates to all variant maps
+schema = {:union,
+  source: &(Atom.to_string(&1) |> Macro.camelize()),
+  by: fn value -> value["Type"] end,
+  of: %{
+    "user" => %{user_name: :string},
+    "bot"  => %{bot_version: :integer}
+  }}
+
+Mold.parse(schema, %{"Type" => "user", "UserName" => "Alice"})
+#=> {:ok, %{user_name: "Alice"}}
 ```
 
 ### Recursive types
@@ -341,7 +368,7 @@ Mold.parse({:integer,
 | `min_length: n` / `max_length: n` | `:string`, `:list` |
 | `trim: true` (default) | `:string` |
 | `format: ~r//` | `:string` |
-| `source: fn` | `:map` |
+| `source: fn` | `:map`, `:union`, `:list`, `:tuple` |
 | `source: key \| [path]` | map fields (path steps: strings, `Access` fns) |
 | `optional: true` | map fields |
 | `reject_invalid: true` | `:list`, `:map` |

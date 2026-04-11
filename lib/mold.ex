@@ -404,6 +404,8 @@ defmodule Mold do
   Options:
   - `:by` – function that takes the raw value and returns a variant (required)
   - `:of` – map of variant => `t:t/0` (required)
+  - `:source` – a function `(field_name -> any())` that propagates to all variant types
+    containing maps. Variants with their own explicit `source` are not overridden.
   - [Shared options](#module-shared-options)
 
   ### Examples
@@ -439,12 +441,14 @@ defmodule Mold do
           {:union,
            by: (any() -> any()),
            of: %{any() => t()},
+           source: source_fn(),
            nilable: boolean(),
            default: default(),
            in: Enumerable.t(),
            transform: transform(),
            validate: validate()}
 
+  @type source_fn :: (term() -> any())
   @type source_step :: term() | Access.access_fun(any(), any())
   @type source_path :: source_step | [source_step]
 
@@ -468,7 +472,7 @@ defmodule Mold do
     - `:optional` – when `true`, omit field from result when missing from input
   - `:source` – a function `(field_name -> any())` that derives the source key from each field name
     (e.g. `source: &(Atom.to_string(&1) |> Macro.camelize())`).
-    Defaults to `&Atom.to_string/1`. Propagates recursively to nested maps, including through lists and tuples.
+    Defaults to `&Atom.to_string/1`. Propagates recursively to nested maps, including through lists, tuples, and unions.
 
   Options for `keys`/`values`:
   - `:keys` – type `t:t/0` for all keys
@@ -512,7 +516,7 @@ defmodule Mold do
       iex> Mold.parse(schema, %{"coords" => [49.8, 24.0]})
       {:ok, %{lat: 49.8, lng: 24.0}}
 
-  Global source function (propagates to nested maps):
+  Global source function (propagates to nested maps, lists, tuples, and unions):
 
       iex> schema = {
       ...>   %{user_name: :string, address: %{zip_code: :string}},
@@ -595,7 +599,7 @@ defmodule Mold do
            ],
            keys: t(),
            values: t(),
-           source: (term() -> any()),
+           source: source_fn(),
            reject_invalid: boolean(),
            nilable: boolean(),
            default: default(),
@@ -615,6 +619,8 @@ defmodule Mold do
 
   Options:
   - `:type` – the element type `t:t/0` (required)
+  - `:source` – a function `(field_name -> any())` that propagates to the inner type
+    when it contains maps. Maps with their own explicit `source` are not overridden.
   - `:reject_invalid` – drop invalid items instead of failing
   - `:min_length` – minimum list length (inclusive)
   - `:max_length` – maximum list length (inclusive)
@@ -640,6 +646,7 @@ defmodule Mold do
   @type list_type() ::
           {:list,
            type: t(),
+           source: source_fn(),
            reject_invalid: boolean(),
            min_length: non_neg_integer(),
            max_length: non_neg_integer(),
@@ -658,6 +665,8 @@ defmodule Mold do
 
   Options:
   - `:elements` – list of `t:t/0`, one per element (required)
+  - `:source` – a function `(field_name -> any())` that propagates to element types
+    containing maps. Maps with their own explicit `source` are not overridden.
   - [Shared options](#module-shared-options)
 
   ### Examples
@@ -677,6 +686,7 @@ defmodule Mold do
   @type tuple_type() ::
           {:tuple,
            elements: [t()],
+           source: source_fn(),
            nilable: boolean(),
            default: default(),
            in: Enumerable.t(),
@@ -1050,6 +1060,15 @@ defmodule Mold do
           {:ok, value}
 
         {:ok, elements} ->
+          elements =
+            case opts[:source] do
+              fun when is_function(fun, 1) ->
+                Enum.map(elements, &propagate_source(&1, fun))
+
+              _ ->
+                elements
+            end
+
           list = if is_tuple(value), do: Tuple.to_list(value), else: value
           expected = length(elements)
           got = length(list)
@@ -1134,6 +1153,16 @@ defmodule Mold do
     handle_shared_opts(value, opts, fn _ -> true end, fn value ->
       by = Keyword.fetch!(opts, :by)
       of = Keyword.fetch!(opts, :of)
+
+      of =
+        case opts[:source] do
+          fun when is_function(fun, 1) ->
+            Map.new(of, fn {key, type} -> {key, propagate_source(type, fun)} end)
+
+          _ ->
+            of
+        end
+
       key = by.(value)
 
       case Map.fetch(of, key) do
@@ -1147,6 +1176,12 @@ defmodule Mold do
     handle_shared_opts(value, opts, &is_list/1, fn value ->
       case Keyword.fetch(opts, :type) do
         {:ok, type} ->
+          type =
+            case opts[:source] do
+              fun when is_function(fun, 1) -> propagate_source(type, fun)
+              _ -> type
+            end
+
           reject_invalid = Keyword.get(opts, :reject_invalid, false)
           trace_acc = opts[:__trace__] || []
 
@@ -1319,6 +1354,13 @@ defmodule Mold do
     {:tuple,
      Keyword.update!(opts, :elements, fn elements ->
        Enum.map(elements, &propagate_source(&1, source_fn))
+     end)}
+  end
+
+  defp propagate_source({:union, opts}, source_fn) do
+    {:union,
+     Keyword.update!(opts, :of, fn of ->
+       Map.new(of, fn {key, type} -> {key, propagate_source(type, source_fn)} end)
      end)}
   end
 
