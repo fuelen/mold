@@ -771,8 +771,8 @@ defmodule Mold do
       #=> ** (Mold.Error) Unable to parse data
       #=>
       #=> 2 errors:
-      #=>   1. :unexpected_nil at ["name"] (value: nil)
-      #=>   2. :invalid_format at ["age"] (value: "abc")
+      #=>   1. :unexpected_nil at [:name] (value: nil)
+      #=>   2. :invalid_format at [:age] (value: "abc")
   """
   @spec parse!(t(), any()) :: any() | no_return()
   def parse!(type, data) do
