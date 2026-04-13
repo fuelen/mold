@@ -2,7 +2,7 @@
 
 A tiny, zero-dependency parsing library for external payloads.
 
-Mold parses JSON APIs, webhooks, HTTP params and other external input into clean Elixir terms.
+Mold parses [JSON APIs](guides/using-with-http-clients.md), webhooks, HTTP params and other external input into clean Elixir terms.
 
 ## Philosophy
 

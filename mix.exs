@@ -17,7 +17,11 @@ defmodule Mold.MixProject do
       docs: [
         main: "Mold",
         source_ref: "v#{@version}",
-        extras: ["cheatsheet.cheatmd", "guides/formatting-errors.md"],
+        extras: [
+          "cheatsheet.cheatmd",
+          "guides/formatting-errors.md",
+          "guides/using-with-http-clients.md"
+        ],
         groups_for_docs: [
           "Types: Basic": &(&1[:group] == "Types: Basic"),
           "Types: Date & Time": &(&1[:group] == "Types: Date & Time"),
