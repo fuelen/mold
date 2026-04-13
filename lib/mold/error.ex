@@ -2,6 +2,9 @@ defmodule Mold.Error do
   @moduledoc """
   Exception raised/returned by Mold when parsing fails.
 
+  Mold does not include a built-in error formatter — see the [Formatting errors](formatting-errors.md)
+  guide for the rationale and recommended approach.
+
   ## Fields
 
   - `:reason` – atom or term explaining the failure (see Reasons below).

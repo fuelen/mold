@@ -56,6 +56,8 @@ defmodule Mold do
   Execution order: parse → transform → in → validate.
 
   Errors include a `:trace` that points to the exact failing path (schema field names, list indexes, and/or dynamic map keys).
+  See `Mold.Error` for the error structure and all possible reasons, and the
+  [Formatting errors](formatting-errors.md) guide for how to present them in your application.
 
   """
 
@@ -785,13 +787,17 @@ defmodule Mold do
   @doc """
   Parses `data` according to `type` and returns `{:ok, value}` or `{:error, [%Mold.Error{}]}`.
 
-  See `t:t/0` for all accepted type forms.
+  See `t:t/0` for all accepted type forms, `Mold.Error` for error structure,
+  and the [Formatting errors](formatting-errors.md) guide for how to present errors.
 
       iex> Mold.parse({:string, nilable: true, trim: true}, "  ")
       {:ok, nil}
 
       iex> Mold.parse(:boolean, "false")
       {:ok, false}
+
+      iex> Mold.parse(%{name: :string}, %{})
+      {:error, [%Mold.Error{reason: {:missing_field, "name"}, value: %{}, trace: [:name]}]}
   """
   @spec parse(t(), data :: any()) :: {:ok, result :: any()} | {:error, [Mold.Error.t(), ...]}
   def parse(type, data) when is_atom(type) or is_function(type, 1) do

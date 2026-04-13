@@ -17,7 +17,7 @@ defmodule Mold.MixProject do
       docs: [
         main: "Mold",
         source_ref: "v#{@version}",
-        extras: ["cheatsheet.cheatmd"],
+        extras: ["cheatsheet.cheatmd", "guides/formatting-errors.md"],
         groups_for_docs: [
           "Types: Basic": &(&1[:group] == "Types: Basic"),
           "Types: Date & Time": &(&1[:group] == "Types: Date & Time"),
@@ -45,7 +45,7 @@ defmodule Mold.MixProject do
     [
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE.txt cheatsheet.cheatmd)
+      files: ~w(lib guides .formatter.exs mix.exs README.md LICENSE.txt cheatsheet.cheatmd)
     ]
   end
 end
