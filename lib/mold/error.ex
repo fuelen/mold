@@ -20,7 +20,8 @@ defmodule Mold.Error do
   | `:unexpected_nil` | Value is `nil` (or empty string for `:string`/date-time types) and type is not nilable |
   | `:unexpected_type` | Value doesn't match expected input type (e.g. passing a list to `:string`) |
   | `{:not_in, enumerable}` | Parsed value not in the `:in` set |
-  | `:validation_failed` | Custom `:validate` function returned `false` |
+  | `:validation_failed` | Custom `:validate` function returned `false` or `:error` |
+  | *any term* | Passed through from `:validate` returning `{:error, reason}` |
 
   ### String
 

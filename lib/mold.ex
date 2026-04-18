@@ -49,9 +49,14 @@ defmodule Mold do
       (list, range, MapSet, etc.).
     * `:transform` – a function applied to the parsed value before validation.
       E.g. `{:string, transform: &String.downcase/1}`.
-    * `:validate` – a function that must return `true` for the value to be accepted.
-      Runs after `:transform` and `:in`. Fails with reason `:validation_failed` on `false`.
-      E.g. `{:integer, validate: &(rem(&1, 2) == 0)}`.
+    * `:validate` – a function that decides whether the parsed value is acceptable.
+      Runs after `:transform` and `:in`. Must return one of:
+      - `true` or `:ok` – value is accepted.
+      - `false` or `:error` – fails with reason `:validation_failed`.
+      - `{:error, reason}` – fails with the given custom `reason`.
+
+      E.g. `{:integer, validate: &(rem(&1, 2) == 0)}` or
+      `{:integer, validate: fn n -> if n > 0, do: :ok, else: {:error, :must_be_positive} end}`.
 
   Execution order: parse → transform → in → validate.
 
@@ -109,9 +114,14 @@ defmodule Mold do
   @type transform() :: (any() -> any())
 
   @typedoc """
-  Validate function. Must return `true` for the value to be accepted.
+  Validate function. Decides whether the parsed value is acceptable.
+
+  Return values:
+  - `true` or `:ok` – value is accepted.
+  - `false` or `:error` – fails with reason `:validation_failed`.
+  - `{:error, reason}` – fails with the given custom `reason`.
   """
-  @type validate() :: (any() -> boolean())
+  @type validate() :: (any() -> boolean() | :ok | :error | {:error, term()})
 
   @typedoc group: "Types: Basic"
   @typedoc """
@@ -1232,9 +1242,16 @@ defmodule Mold do
   defp apply_validate(value, opts) do
     case Keyword.fetch(opts, :validate) do
       {:ok, fun} when is_function(fun, 1) ->
-        if fun.(value),
-          do: {:ok, value},
-          else: {:error, [Mold.Error.new(%{reason: :validation_failed, value: value})]}
+        case fun.(value) do
+          ok when ok in [true, :ok] ->
+            {:ok, value}
+
+          err when err in [false, :error] ->
+            {:error, [Mold.Error.new(%{reason: :validation_failed, value: value})]}
+
+          {:error, reason} ->
+            {:error, [Mold.Error.new(%{reason: reason, value: value})]}
+        end
 
       :error ->
         {:ok, value}

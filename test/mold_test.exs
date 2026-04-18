@@ -1304,6 +1304,23 @@ defmodule MoldTest do
                {:error, [Mold.Error.new(%{reason: :validation_failed, value: -1})]}
     end
 
+    test "validate accepts :ok / {:error, reason} return values" do
+      positive = fn
+        n when n > 0 -> :ok
+        _ -> {:error, :must_be_positive}
+      end
+
+      assert Mold.parse({:integer, validate: positive}, "5") == {:ok, 5}
+
+      assert Mold.parse({:integer, validate: positive}, "-1") ==
+               {:error, [Mold.Error.new(%{reason: :must_be_positive, value: -1})]}
+    end
+
+    test "validate treats bare :error the same as false" do
+      assert Mold.parse({:integer, validate: fn _ -> :error end}, "5") ==
+               {:error, [Mold.Error.new(%{reason: :validation_failed, value: 5})]}
+    end
+
     test "transform then validate" do
       type = {:string, transform: &String.downcase/1, validate: &String.contains?(&1, "@")}
 
