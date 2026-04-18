@@ -598,6 +598,42 @@ defmodule MoldTest do
                 ]}
     end
 
+    test ":map collects all errors with mixed source shapes (single key and nested list path)" do
+      schema =
+        {:map,
+         fields: [
+           name: [type: :string, source: "name"],
+           city: [type: :string, source: ["profile", "address", "city"]],
+           zip: [type: :string, source: ["profile", "address", "zip"]],
+           country: [type: :string, source: ["profile", "address", "country"]],
+           age: [type: :integer, source: "age"]
+         ]}
+
+      data = %{
+        "name" => 123,
+        "profile" => %{"address" => %{"city" => 42}},
+        "age" => "abc"
+      }
+
+      assert Mold.parse(schema, data) ==
+               {:error,
+                [
+                  Mold.Error.new(%{reason: :unexpected_type, trace: [:name], value: 123}),
+                  Mold.Error.new(%{reason: :unexpected_type, trace: [:city], value: 42}),
+                  Mold.Error.new(%{
+                    reason: {:missing_field, "zip"},
+                    trace: [:zip],
+                    value: %{"city" => 42}
+                  }),
+                  Mold.Error.new(%{
+                    reason: {:missing_field, "country"},
+                    trace: [:country],
+                    value: %{"city" => 42}
+                  }),
+                  Mold.Error.new(%{reason: :invalid_format, trace: [:age], value: "abc"})
+                ]}
+    end
+
     test ":map optional fields" do
       schema =
         {:map,

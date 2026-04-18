@@ -861,11 +861,11 @@ defmodule Mold do
 
               opts = maybe_propagate_source(opts, source_fn)
               source = List.wrap(opts[:source])
+              field_trace = [name | trace_acc]
 
               case fetch_in(data, source) do
                 {:ok, value} ->
-                  trace_acc = [name | trace_acc]
-                  type = put_trace_to_container_types(opts[:type], trace_acc)
+                  type = put_trace_to_container_types(opts[:type], field_trace)
 
                   case parse(type, value) do
                     {:ok, value} ->
@@ -875,8 +875,8 @@ defmodule Mold do
                       if reject_invalid and opts[:optional] do
                         {acc, errors}
                       else
-                        field_errors = add_trace_to_errors(field_errors, trace_acc)
-                        {acc, errors ++ field_errors}
+                        field_errors = add_trace_to_errors(field_errors, field_trace)
+                        {acc, [field_errors | errors]}
                       end
                   end
 
@@ -889,9 +889,7 @@ defmodule Mold do
                         {Map.put(acc, name, default), errors}
 
                       :error ->
-                        {acc,
-                         errors ++
-                           [%{error | trace: Enum.reverse([name | trace_acc])}]}
+                        {acc, [[%{error | trace: Enum.reverse(field_trace)}] | errors]}
                     end
                   end
               end
@@ -900,7 +898,7 @@ defmodule Mold do
           if errors == [] do
             {:ok, result}
           else
-            {:error, errors}
+            {:error, errors |> Enum.reverse() |> Enum.concat()}
           end
 
         :error ->
@@ -1309,20 +1307,15 @@ defmodule Mold do
   end
 
   defp fetch_in(data, path) do
-    result =
-      Enum.reduce_while(path, {:ok, {[], data}}, fn step, {:ok, {trace, acc}} ->
-        case fetch_in_step(acc, step) do
-          {:ok, value} ->
-            {:cont, {:ok, {trace ++ [step], value}}}
+    Enum.reduce_while(path, {:ok, data}, fn step, {:ok, acc} ->
+      case fetch_in_step(acc, step) do
+        {:ok, value} ->
+          {:cont, {:ok, value}}
 
-          {:error, reason} ->
-            {:halt, {:error, Mold.Error.new(%{reason: reason, value: acc, trace: trace})}}
-        end
-      end)
-
-    with {:ok, {_trace, data}} <- result do
-      {:ok, data}
-    end
+        {:error, reason} ->
+          {:halt, {:error, Mold.Error.new(%{reason: reason, value: acc})}}
+      end
+    end)
   end
 
   defp fetch_in_step(data, accessor) when is_function(accessor) do
