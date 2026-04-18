@@ -20,7 +20,8 @@ defmodule Mold.MixProject do
         extras: [
           "cheatsheet.cheatmd",
           "guides/formatting-errors.md",
-          "guides/using-with-http-clients.md"
+          "guides/using-with-http-clients.md",
+          "CHANGELOG.md"
         ],
         groups_for_docs: [
           "Types: Basic": &(&1[:group] == "Types: Basic"),
@@ -48,8 +49,12 @@ defmodule Mold.MixProject do
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => @source_url},
-      files: ~w(lib guides .formatter.exs mix.exs README.md LICENSE.txt cheatsheet.cheatmd)
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
+      },
+      files:
+        ~w(lib guides .formatter.exs mix.exs README.md LICENSE.txt CHANGELOG.md cheatsheet.cheatmd)
     ]
   end
 end
