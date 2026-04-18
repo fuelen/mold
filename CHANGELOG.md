@@ -7,6 +7,10 @@
 - `source` option for `:union`, `:list`, and `:tuple` types.
 - `validate` functions can now return `:ok`, `:error`, or `{:error, reason}` in addition to `true`/`false`. `{:error, reason}` allows custom error reasons; `:ok`/`:error` mirror `true`/`false`.
 
+### Changed
+
+- Dynamic maps (`keys`/`values`) now collect all entry errors instead of stopping at the first one, consistent with how `fields` behave.
+
 ### Documentation
 
 - New guide: using Mold with HTTP clients.

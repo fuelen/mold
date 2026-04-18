@@ -479,6 +479,42 @@ defmodule MoldTest do
                 ]}
     end
 
+    test ":map with keys/values collects all errors" do
+      schema = {:map, keys: :string, values: :integer}
+
+      # multiple bad values
+      {:error, errors} = Mold.parse(schema, %{"a" => "abc", "b" => "def"})
+
+      assert Enum.sort_by(errors, & &1.trace) == [
+               Mold.Error.new(%{reason: :invalid_format, trace: ["a"], value: "abc"}),
+               Mold.Error.new(%{reason: :invalid_format, trace: ["b"], value: "def"})
+             ]
+
+      # mixed: bad key + bad value
+      _ = :known_key
+      schema_atom_keys = {:map, keys: :atom, values: :integer}
+
+      {:error, errors} =
+        Mold.parse(schema_atom_keys, %{"nonexistent_atom_xyz" => "1", "known_key" => "nope"})
+
+      assert Enum.sort_by(errors, & &1.reason) == [
+               Mold.Error.new(%{reason: :invalid_format, trace: [:known_key], value: "nope"}),
+               Mold.Error.new(%{reason: :unknown_atom, trace: [], value: "nonexistent_atom_xyz"})
+             ]
+
+      # all keys invalid
+      {:error, errors} =
+        Mold.parse(schema_atom_keys, %{
+          "nonexistent_atom_xyz" => "1",
+          "also_not_an_atom_qqq" => "2"
+        })
+
+      assert Enum.sort_by(errors, & &1.value) == [
+               Mold.Error.new(%{reason: :unknown_atom, value: "also_not_an_atom_qqq", trace: []}),
+               Mold.Error.new(%{reason: :unknown_atom, value: "nonexistent_atom_xyz", trace: []})
+             ]
+    end
+
     test ":map" do
       assert Mold.parse(:map, %{"name" => "hello"}) == {:ok, %{"name" => "hello"}}
 

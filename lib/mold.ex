@@ -904,31 +904,41 @@ defmodule Mold do
         :error ->
           case {Keyword.fetch(opts, :keys), Keyword.fetch(opts, :values)} do
             {{:ok, key_type}, {:ok, value_type}} ->
-              Enum.reduce_while(data, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
-                case parse(key_type, key) do
-                  {:ok, parsed_key} ->
-                    key_trace_acc = [parsed_key | trace_acc]
+              {result, errors} =
+                Enum.reduce(data, {%{}, []}, fn {key, value}, {acc, errors} ->
+                  case parse(key_type, key) do
+                    {:ok, parsed_key} ->
+                      key_trace_acc = [parsed_key | trace_acc]
+                      value_type = put_trace_to_container_types(value_type, key_trace_acc)
 
-                    case parse(put_trace_to_container_types(value_type, key_trace_acc), value) do
-                      {:ok, parsed_value} ->
-                        {:cont, {:ok, Map.put(acc, parsed_key, parsed_value)}}
+                      case parse(value_type, value) do
+                        {:ok, parsed_value} ->
+                          {Map.put(acc, parsed_key, parsed_value), errors}
 
-                      {:error, errors} ->
-                        if reject_invalid do
-                          {:cont, {:ok, acc}}
-                        else
-                          {:halt, {:error, add_trace_to_errors(errors, key_trace_acc)}}
-                        end
-                    end
+                        {:error, entry_errors} ->
+                          if reject_invalid do
+                            {acc, errors}
+                          else
+                            entry_errors = add_trace_to_errors(entry_errors, key_trace_acc)
+                            {acc, [entry_errors | errors]}
+                          end
+                      end
 
-                  {:error, errors} ->
-                    if reject_invalid do
-                      {:cont, {:ok, acc}}
-                    else
-                      {:halt, {:error, add_trace_to_errors(errors, trace_acc)}}
-                    end
-                end
-              end)
+                    {:error, entry_errors} ->
+                      if reject_invalid do
+                        {acc, errors}
+                      else
+                        entry_errors = add_trace_to_errors(entry_errors, trace_acc)
+                        {acc, [entry_errors | errors]}
+                      end
+                  end
+                end)
+
+              if errors == [] do
+                {:ok, result}
+              else
+                {:error, errors |> Enum.reverse() |> Enum.concat()}
+              end
 
             _ ->
               {:ok, data}
