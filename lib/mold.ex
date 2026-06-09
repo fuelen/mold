@@ -652,8 +652,11 @@ defmodule Mold do
       iex> Mold.parse({[:string], reject_invalid: true}, ["a", nil, "b"])
       {:ok, ["a", "b"]}
 
-      iex> Mold.parse([:integer], ["1", "abc", "3"])
-      {:error, [%Mold.Error{reason: :invalid_format, value: "abc", trace: [1]}]}
+      iex> Mold.parse([:integer], ["1", "abc", "x"])
+      {:error, [
+        %Mold.Error{reason: :invalid_format, value: "abc", trace: [1]},
+        %Mold.Error{reason: :invalid_format, value: "x", trace: [2]}
+      ]}
   """
   @type list_type() ::
           {:list,
@@ -1209,29 +1212,32 @@ defmodule Mold do
           reject_invalid = Keyword.get(opts, :reject_invalid, false)
           trace_acc = opts[:__trace__] || []
 
-          result =
+          {result, errors} =
             value
             |> Enum.with_index()
-            |> Enum.reduce_while({:ok, []}, fn {value, index}, {:ok, acc} ->
+            |> Enum.reduce({[], []}, fn {value, index}, {acc, errors} ->
               trace_acc = [index | trace_acc]
               type = put_trace_to_container_types(type, trace_acc)
 
               case parse(type, value) do
                 {:ok, value} ->
-                  {:cont, {:ok, [value | acc]}}
+                  {[value | acc], errors}
 
-                {:error, errors} ->
+                {:error, item_errors} ->
                   if reject_invalid do
-                    {:cont, {:ok, acc}}
+                    {acc, errors}
                   else
-                    {:halt, {:error, add_trace_to_errors(errors, trace_acc)}}
+                    item_errors = add_trace_to_errors(item_errors, trace_acc)
+                    {acc, [item_errors | errors]}
                   end
               end
             end)
 
-          with {:ok, values} <- result do
-            values = Enum.reverse(values)
+          if errors == [] do
+            values = Enum.reverse(result)
             validate_length(values, opts, &length/1)
+          else
+            {:error, errors |> Enum.reverse() |> Enum.concat()}
           end
 
         :error ->

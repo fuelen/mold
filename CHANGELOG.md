@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Lists now collect all element errors instead of stopping at the first one, consistent with maps and tuples.
+
 ## [0.2.0] - 2026-04-19
 
 ### Added

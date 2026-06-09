@@ -348,14 +348,20 @@ defmodule MoldTest do
 
       assert Mold.parse({:list, type: :date}, ["2024-01-01", "2025-01-01", "invalid1", "invalid2"]) ==
                {:error,
-                [Mold.Error.new(%{reason: :invalid_format, trace: [2], value: "invalid1"})]}
+                [
+                  Mold.Error.new(%{reason: :invalid_format, trace: [2], value: "invalid1"}),
+                  Mold.Error.new(%{reason: :invalid_format, trace: [3], value: "invalid2"})
+                ]}
 
       assert Mold.parse(
                {:list, type: {:list, type: :date}},
                [["2024-01-01", "2025-01-01"], ["invalid1", "invalid2"]]
              ) ==
                {:error,
-                [Mold.Error.new(%{reason: :invalid_format, trace: [1, 0], value: "invalid1"})]}
+                [
+                  Mold.Error.new(%{reason: :invalid_format, trace: [1, 0], value: "invalid1"}),
+                  Mold.Error.new(%{reason: :invalid_format, trace: [1, 1], value: "invalid2"})
+                ]}
 
       assert Mold.parse({:list, type: :string, reject_invalid: true}, ["hello", nil]) ==
                {:ok, ["hello"]}
