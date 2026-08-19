@@ -275,6 +275,16 @@ Mold.parse(email_type, "USER@EXAMPLE.COM")
 # Standard library functions work too
 Mold.parse(&Version.parse/1, "1.0.0")
 #=> {:ok, %Version{major: 1, minor: 0, patch: 0}}
+
+# But a bare capture raises on input of an unexpected shape.
+# Guard it when the payload is untrusted:
+version_type = fn
+  value when is_binary(value) -> Version.parse(value)
+  _ -> {:error, :unexpected_type}
+end
+
+Mold.parse(version_type, 123)
+#=> {:error, [%Mold.Error{reason: :unexpected_type, value: 123}]}
 ```
 
 ### Default values

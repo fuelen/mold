@@ -67,6 +67,10 @@ A Mold type is plain Elixir data. Every type is one of three things:
 | Function | `&MyApp.parse_email/1` | Custom parse `fn value -> {:ok, v} \| {:error, r} \| :error end` |
 | Tuple | `{:integer, min: 0}` | Type (atom or function) with options |
 
+A custom function receives the value as is, apart from `nil`, which Mold handles first. A bare
+capture like `&Version.parse/1` raises on input of an unexpected shape, so for untrusted payloads
+add a guard clause returning `{:error, :unexpected_type}`.
+
 Maps and lists have a shortcut syntax:
 
 | Shortcut | Example | Expands to |

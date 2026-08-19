@@ -11,6 +11,10 @@
 
 - `:atom` no longer accepts an empty string as the atom `:""`. Since `:""` always exists at runtime, `String.to_existing_atom("")` never raised and the empty value passed validation silently.
 
+### Documentation
+
+- Custom function types now document that a bare capture such as `&Version.parse/1` raises on input of an unexpected shape, and show the guard clause that returns `{:error, :unexpected_type}` instead.
+
 ## [0.2.0] - 2026-04-19
 
 ### Added

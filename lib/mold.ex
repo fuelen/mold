@@ -751,6 +751,20 @@ defmodule Mold do
       {:ok, %Version{major: 1, minor: 0, patch: 0}}
       iex> Mold.parse(&Version.parse/1, "invalid")
       {:error, [%Mold.Error{reason: :invalid, value: "invalid"}]}
+
+  Bare captures like `&Version.parse/1` and `&JSON.decode/1` raise on input of an unexpected
+  shape. Mold intercepts `nil` before the function runs, but passes everything else through
+  as is. When the value comes from an untrusted payload, add a guard clause and return
+  `{:error, :unexpected_type}` to get the same error the built-in types produce:
+
+      iex> version_type = fn
+      ...>   value when is_binary(value) -> Version.parse(value)
+      ...>   _ -> {:error, :unexpected_type}
+      ...> end
+      iex> Mold.parse(version_type, 123)
+      {:error, [%Mold.Error{reason: :unexpected_type, value: 123}]}
+      iex> Mold.parse(:string, 123)
+      {:error, [%Mold.Error{reason: :unexpected_type, value: 123}]}
   """
   @type function_type() ::
           {parse_function(),
