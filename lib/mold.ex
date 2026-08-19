@@ -174,6 +174,7 @@ defmodule Mold do
   @typedoc """
   Atom type. Accepts atoms and strings convertible to existing atoms
   (via `String.to_existing_atom/1`).
+  Empty strings are treated as `nil`.
 
   Options:
   - [Shared options](#module-shared-options)
@@ -191,6 +192,9 @@ defmodule Mold do
 
       iex> Mold.parse({:atom, default: :draft}, nil)
       {:ok, :draft}
+
+      iex> Mold.parse({:atom, nilable: true}, "")
+      {:ok, nil}
   """
   @type atom_type() ::
           {:atom,
@@ -204,6 +208,7 @@ defmodule Mold do
   @typedoc group: "Types: Basic"
   @typedoc """
   Boolean type. Accepts booleans, strings (`"true"`, `"false"`, `"1"`, `"0"`), and integers (`1`, `0`).
+  Empty strings are treated as `nil`.
 
   Options:
   - [Shared options](#module-shared-options)
@@ -234,6 +239,7 @@ defmodule Mold do
   @typedoc group: "Types: Basic"
   @typedoc """
   Integer type. Accepts integers and strings parseable as integers.
+  Empty strings are treated as `nil`.
 
   Options:
   - `:min` – minimum value (inclusive)
@@ -253,6 +259,9 @@ defmodule Mold do
 
       iex> Mold.parse({:integer, in: 1..10}, "5")
       {:ok, 5}
+
+      iex> Mold.parse({:integer, default: 4000}, "")
+      {:ok, 4000}
   """
   @type integer_type() ::
           {:integer,
@@ -268,6 +277,7 @@ defmodule Mold do
   @typedoc group: "Types: Basic"
   @typedoc """
   Float type. Accepts floats, integers (promoted to float), and strings parseable as floats.
+  Empty strings are treated as `nil`.
 
   Options:
   - `:min` – minimum value (inclusive)
@@ -977,6 +987,9 @@ defmodule Mold do
       value when is_atom(value) ->
         {:ok, value}
 
+      "" ->
+        {:ok, nil}
+
       value when is_binary(value) ->
         try do
           {:ok, String.to_existing_atom(value)}
@@ -990,6 +1003,9 @@ defmodule Mold do
     handle_shared_opts(value, opts, &(is_boolean(&1) or is_binary(&1) or is_integer(&1)), fn
       value when is_boolean(value) ->
         {:ok, value}
+
+      "" ->
+        {:ok, nil}
 
       value when value in [1, "1", "true"] ->
         {:ok, true}
@@ -1007,6 +1023,9 @@ defmodule Mold do
       value when is_integer(value) ->
         validate_number(value, opts)
 
+      "" ->
+        {:ok, nil}
+
       value when is_binary(value) ->
         case Integer.parse(value) do
           {integer, ""} -> validate_number(integer, opts)
@@ -1022,6 +1041,9 @@ defmodule Mold do
 
       value when is_integer(value) ->
         validate_number(value / 1, opts)
+
+      "" ->
+        {:ok, nil}
 
       value when is_binary(value) ->
         case Float.parse(value) do

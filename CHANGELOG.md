@@ -5,6 +5,11 @@
 ### Changed
 
 - Lists now collect all element errors instead of stopping at the first one, consistent with maps and tuples.
+- `:integer`, `:float`, `:boolean`, and `:atom` now treat empty strings as `nil`, like `:string` and the date/time types already did. This makes `nilable` and `default` work for these types when the input is `""`, and changes the error reason from `:invalid_format` to `:unexpected_nil` when neither option is set.
+
+### Fixed
+
+- `:atom` no longer accepts an empty string as the atom `:""`. Since `:""` always exists at runtime, `String.to_existing_atom("")` never raised and the empty value passed validation silently.
 
 ## [0.2.0] - 2026-04-19
 

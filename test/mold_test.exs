@@ -74,6 +74,11 @@ defmodule MoldTest do
                {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: nil})]}
 
       assert Mold.parse({:atom, nilable: true}, nil) == {:ok, nil}
+
+      assert Mold.parse(:atom, "") ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: ""})]}
+
+      assert Mold.parse({:atom, nilable: true}, "") == {:ok, nil}
     end
 
     test ":boolean" do
@@ -100,6 +105,11 @@ defmodule MoldTest do
 
       assert Mold.parse({:boolean, nilable: true}, nil) == {:ok, nil}
 
+      assert Mold.parse(:boolean, "") ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: ""})]}
+
+      assert Mold.parse({:boolean, nilable: true}, "") == {:ok, nil}
+
       assert Mold.parse({:boolean, nilable: false}, nil) ==
                {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: nil})]}
 
@@ -124,6 +134,11 @@ defmodule MoldTest do
                {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: nil})]}
 
       assert Mold.parse({:integer, nilable: true}, nil) == {:ok, nil}
+
+      assert Mold.parse(:integer, "") ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: ""})]}
+
+      assert Mold.parse({:integer, nilable: true}, "") == {:ok, nil}
       assert Mold.parse({:integer, min: 0}, 5) == {:ok, 5}
       assert Mold.parse({:integer, min: 0}, 0) == {:ok, 0}
 
@@ -167,6 +182,11 @@ defmodule MoldTest do
                {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: nil})]}
 
       assert Mold.parse({:float, nilable: true}, nil) == {:ok, nil}
+
+      assert Mold.parse(:float, "") ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: ""})]}
+
+      assert Mold.parse({:float, nilable: true}, "") == {:ok, nil}
 
       assert Mold.parse({:float, min: 0.0}, -0.5) ==
                {:error, [Mold.Error.new(%{reason: {:too_small, min: 0.0}, value: -0.5})]}
@@ -1313,7 +1333,11 @@ defmodule MoldTest do
 
     test ":default" do
       assert Mold.parse({:integer, default: 0}, nil) == {:ok, 0}
+      assert Mold.parse({:integer, default: 0}, "") == {:ok, 0}
       assert Mold.parse({:integer, default: 0}, "5") == {:ok, 5}
+      assert Mold.parse({:boolean, default: true}, "") == {:ok, true}
+      assert Mold.parse({:float, default: 1.5}, "") == {:ok, 1.5}
+      assert Mold.parse({:atom, default: :draft}, "") == {:ok, :draft}
       assert Mold.parse({:string, default: "N/A"}, nil) == {:ok, "N/A"}
       assert Mold.parse({:string, default: "N/A"}, "") == {:ok, "N/A"}
       assert Mold.parse({:string, default: "N/A"}, "hello") == {:ok, "hello"}
