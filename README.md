@@ -1,5 +1,10 @@
 # Mold
 
+[![CI](https://github.com/fuelen/mold/actions/workflows/elixir.yml/badge.svg)](https://github.com/fuelen/mold/actions/workflows/elixir.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/mold.svg)](https://hex.pm/packages/mold)
+[![Coverage Status](https://coveralls.io/repos/github/fuelen/mold/badge.svg?branch=main)](https://coveralls.io/github/fuelen/mold?branch=main)
+[![Documentation](https://img.shields.io/badge/documentation-gray)](https://hexdocs.pm/mold)
+
 A tiny, zero-dependency parsing library for external payloads.
 
 Mold parses [JSON APIs](guides/using-with-http-clients.md), webhooks, HTTP params and other external input into clean Elixir terms.

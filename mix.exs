@@ -14,6 +14,7 @@ defmodule Mold.MixProject do
       description: "A tiny, zero-dependency parsing library for external payloads",
       package: package(),
       source_url: @source_url,
+      test_coverage: [tool: ExCoveralls],
       docs: [
         main: "Mold",
         source_ref: "v#{@version}",
@@ -42,6 +43,7 @@ defmodule Mold.MixProject do
 
   defp deps do
     [
+      {:excoveralls, "~> 0.18", only: :test},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false}
     ]
   end
