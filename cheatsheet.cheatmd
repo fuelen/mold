@@ -76,6 +76,25 @@ Mold.parse(:time, "14:30:00")
 #=> {:ok, ~T[14:30:00]}
 ```
 
+### Empty strings
+
+The built-in scalar and date/time types treat `""` as `nil`. This means `nilable` and
+`default` work the same way for an empty string as for `nil`:
+
+```elixir
+Mold.parse(:integer, "")
+#=> {:error, [%Mold.Error{reason: :unexpected_nil, value: ""}]}
+
+Mold.parse({:integer, nilable: true}, "")
+#=> {:ok, nil}
+
+Mold.parse({:integer, default: 0}, "")
+#=> {:ok, 0}
+```
+
+Only `:string` trims whitespace by default, so whitespace-only strings become `nil` for
+`:string`; the other built-in types do not treat whitespace as empty.
+
 ## Maps
 
 ### Basic
@@ -302,13 +321,18 @@ Mold.parse({:integer,
   default: {Enum, :count, [[1, 2, 3]]}}, nil)
 #=> {:ok, 3}
 
-# nilable + default: nil for missing,
-# nil preserved when explicit
+# The resolved default is the final output. It is not parsed or
+# passed through transform, in, or validate.
+Mold.parse({:integer, min: 0, default: -1}, nil)
+#=> {:ok, -1}
+
+# nilable + default: default for missing,
+# explicit nil preserved
 # (like `value: data["value"]` in plain Elixir)
-schema = %{score: {:integer, nilable: true, default: nil}}
+schema = %{score: {:integer, nilable: true, default: 0}}
 
 Mold.parse(schema, %{})
-#=> {:ok, %{score: nil}}
+#=> {:ok, %{score: 0}}
 
 Mold.parse(schema, %{"score" => nil})
 #=> {:ok, %{score: nil}}
@@ -365,10 +389,10 @@ Mold.parse({:integer,
 | Option | Description |
 |---|---|
 | `nilable: true` | Accept `nil` as valid |
-| `default: v \| fn \| mfa` | Substitute when nil or missing (`nilable` takes precedence) |
+| `default: v \| fn \| mfa` | Final value for nil or missing; skips parsing, `transform`, `in`, and `validate` (`nilable` takes precedence) |
 | `in: enumerable` | Validate membership |
 | `transform: fn` | Transform parsed value (before `in` and `validate`) |
-| `validate: fn` | Must return `true` (after `transform` and `in`) |
+| `validate: fn` | After `transform` and `in`; accepts `true`/`:ok`, rejects with `false`/`:error`, or returns `{:error, reason}` |
 
 ### Type-specific
 

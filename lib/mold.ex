@@ -45,6 +45,8 @@ defmodule Mold do
       When combined with `nilable`, explicit `nil` is preserved and the default only
       applies to missing fields. Note: a 3-tuple `{atom, atom, list}` is always treated as MFA.
       To use such a tuple as a static default, wrap it: `default: fn -> {Mod, :fun, []} end`.
+      The resolved default is returned as the final value; it is not parsed or passed through
+      `:transform`, `:in`, or `:validate`.
     * `:in` – validates that the parsed value is a member of the given `t:Enumerable.t/0`
       (list, range, MapSet, etc.).
     * `:transform` – a function applied to the parsed value before validation.
@@ -104,7 +106,8 @@ defmodule Mold do
   @type parse_function() :: (any() -> {:ok, any()} | {:error, [Mold.Error.t()] | any()} | :error)
 
   @typedoc """
-  Default value: a static value, a zero-arity function, or an MFA tuple.
+  Default value: a static value, a zero-arity function, or an MFA tuple. The resolved value is
+  returned directly, without parsing or applying `:transform`, `:in`, or `:validate`.
   """
   @type default() :: any() | (-> any()) | {module(), atom(), [any()]}
 

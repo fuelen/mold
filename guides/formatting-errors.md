@@ -34,6 +34,10 @@ defmodule MyApp.MoldErrorFormatter do
   defp format_reason(:unexpected_type), do: "has invalid type"
   defp format_reason(:invalid_format), do: "has invalid format"
   defp format_reason({:invalid_format, _}), do: "has invalid format"
+  defp format_reason(:invalid_date), do: "has invalid date"
+  defp format_reason(:invalid_time), do: "has invalid time"
+  defp format_reason(:missing_offset), do: "must include a UTC offset"
+  defp format_reason(:unknown_atom), do: "is not a known atom"
   defp format_reason(:validation_failed), do: "is invalid"
   defp format_reason(:invalid), do: "is invalid"
   defp format_reason({:missing_field, _}), do: "is required"
@@ -41,6 +45,8 @@ defmodule MyApp.MoldErrorFormatter do
   defp format_reason({:too_large, max: max}), do: "must be at most #{max}"
   defp format_reason({:too_short, min_length: n}), do: "length must be at least #{n}"
   defp format_reason({:too_long, max_length: n}), do: "length must be at most #{n}"
+  defp format_reason({:unexpected_length, expected: n, got: _}), do: "must contain #{n} elements"
+  defp format_reason({:unknown_variant, _}), do: "has unknown variant"
   defp format_reason({:not_in, _}), do: "is not an accepted value"
   # Catch-all for custom parse function reasons.
   # A safe default that avoids leaking internal data to the end user.

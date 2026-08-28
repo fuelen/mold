@@ -57,7 +57,7 @@ Mold.parse({:atom, in: [:draft, :published]}, "draft")       #=> {:ok, :draft}
 
 # Errors include the path to the failing value
 Mold.parse(%{items: [%{name: :string}]}, %{"items" => [%{"name" => "A"}, %{}]})
-#=> {:error, [%Mold.Error{reason: {:missing_field, "name"}, trace: [:items, 1], ...}]}
+#=> {:error, [%Mold.Error{reason: {:missing_field, "name"}, trace: [:items, 1, :name], ...}]}
 ```
 
 See the [Cheatsheet](https://hexdocs.pm/mold/cheatsheet.html) for more examples.

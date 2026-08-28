@@ -1376,6 +1376,11 @@ defmodule MoldTest do
       assert Mold.parse({:string, default: fn -> "lazy" end}, "hello") == {:ok, "hello"}
       assert Mold.parse({:integer, default: {Enum, :count, [[1, 2, 3]]}}, nil) == {:ok, 3}
 
+      type =
+        {:integer, min: 0, default: -1, transform: &(&1 * 10), in: [10], validate: &(&1 > 0)}
+
+      assert Mold.parse(type, nil) == {:ok, -1}
+
       schema =
         {:map,
          fields: [
