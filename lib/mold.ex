@@ -1232,8 +1232,14 @@ defmodule Mold do
       key = by.(value)
 
       case Map.fetch(of, key) do
-        {:ok, type} -> parse(type, value)
-        :error -> {:error, [Mold.Error.new(%{reason: {:unknown_variant, key}, value: value})]}
+        {:ok, type} ->
+          case parse(type, value) do
+            {:error, errors} -> {:error, prepend_trace(errors, opts[:__trace__])}
+            result -> result
+          end
+
+        :error ->
+          {:error, [Mold.Error.new(%{reason: {:unknown_variant, key}, value: value})]}
       end
     end)
   end
@@ -1438,7 +1444,7 @@ defmodule Mold do
   defp propagate_source(type, _source_fn), do: type
 
   defp put_trace_to_container_types({type_name, opts}, trace)
-       when type_name in [:map, :list, :tuple] do
+       when type_name in [:map, :list, :tuple, :union] do
     {type_name, Keyword.put(opts, :__trace__, trace)}
   end
 

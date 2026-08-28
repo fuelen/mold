@@ -1219,6 +1219,26 @@ defmodule MoldTest do
                   })
                 ]}
 
+      assert Mold.parse(%{item: schema}, %{"item" => %{"type" => "user"}}) ==
+               {:error,
+                [
+                  Mold.Error.new(%{
+                    reason: {:missing_field, "name"},
+                    value: %{"type" => "user"},
+                    trace: [:item, :name]
+                  })
+                ]}
+
+      assert Mold.parse([schema], [%{"type" => "user"}]) ==
+               {:error,
+                [
+                  Mold.Error.new(%{
+                    reason: {:missing_field, "name"},
+                    value: %{"type" => "user"},
+                    trace: [0, :name]
+                  })
+                ]}
+
       assert Mold.parse(schema, nil) ==
                {:error, [Mold.Error.new(%{reason: :unexpected_nil, value: nil})]}
 
