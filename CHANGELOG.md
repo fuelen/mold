@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-28
+
 ### Changed
 
 - Lists now collect all element errors instead of stopping at the first one, consistent with maps and tuples.
@@ -10,10 +12,14 @@
 ### Fixed
 
 - `:atom` no longer accepts an empty string as the atom `:""`. Since `:""` always exists at runtime, `String.to_existing_atom("")` never raised and the empty value passed validation silently.
+- Optional fields and fields with defaults no longer hide `:unexpected_type` errors caused by malformed intermediate values in a `source` path. Only missing path segments trigger omission or a default.
+- Errors returned by nested union variants now preserve the full outer trace.
 
 ### Documentation
 
 - Custom function types now document that a bare capture such as `&Version.parse/1` raises on input of an unexpected shape, and show the guard clause that returns `{:error, :unexpected_type}` instead.
+- Documented empty-string handling, the full `validate` return contract, and that defaults are final values which skip parsing and the shared option pipeline.
+- Completed the error-formatting example for all built-in reasons and corrected the nested trace example in the README.
 
 ## [0.2.0] - 2026-04-19
 
@@ -64,6 +70,8 @@ Initial release.
 - Source key mapping with propagation to nested structures.
 - Rich error traces with path to the failing value.
 
+[Unreleased]: https://github.com/fuelen/mold/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/fuelen/mold/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fuelen/mold/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/fuelen/mold/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/fuelen/mold/compare/v0.1.0...v0.1.1

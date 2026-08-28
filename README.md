@@ -24,7 +24,7 @@ Types in Mold are plain data. A type is just a value: you can build it at runtim
 ```elixir
 def deps do
   [
-    {:mold, "~> 0.2"}
+    {:mold, "~> 0.3"}
   ]
 end
 ```
