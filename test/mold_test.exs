@@ -735,6 +735,9 @@ defmodule MoldTest do
 
       assert Mold.parse(schema, %{"profile" => 123}) ==
                {:error, [Mold.Error.new(%{reason: :unexpected_type, trace: [:city], value: 123})]}
+
+      assert Mold.parse(schema, %{"profile" => []}) ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_type, trace: [:city], value: []})]}
     end
 
     test ":map reject_invalid with fields" do

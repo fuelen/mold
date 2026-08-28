@@ -1388,7 +1388,7 @@ defmodule Mold do
     _ -> {:error, :unexpected_type}
   end
 
-  defp fetch_in_step(data, key) when is_map(data) or is_list(data) do
+  defp fetch_in_step(data, key) when is_map(data) or (is_list(data) and is_atom(key)) do
     case Access.fetch(data, key) do
       {:ok, _} = ok -> ok
       :error -> {:error, {:missing_field, key}}
