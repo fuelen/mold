@@ -541,6 +541,16 @@ defmodule MoldTest do
              ]
     end
 
+    test ":map with keys/values overwrites duplicate parsed keys" do
+      assert {:ok, data} =
+               Mold.parse(
+                 {:map, keys: {:string, transform: &String.downcase/1}, values: :integer},
+                 %{"A" => "1", "a" => "2"}
+               )
+
+      assert data in [%{"a" => 1}, %{"a" => 2}]
+    end
+
     test ":map" do
       assert Mold.parse(:map, %{"name" => "hello"}) == {:ok, %{"name" => "hello"}}
 
