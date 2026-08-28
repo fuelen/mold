@@ -907,7 +907,7 @@ defmodule Mold do
                       end
                   end
 
-                {:error, error} ->
+                {:error, %Mold.Error{reason: {:missing_field, _}} = error} ->
                   if opts[:optional] do
                     {acc, errors}
                   else
@@ -919,6 +919,9 @@ defmodule Mold do
                         {acc, [[%{error | trace: Enum.reverse(field_trace)}] | errors]}
                     end
                   end
+
+                {:error, error} ->
+                  {acc, [[%{error | trace: Enum.reverse(field_trace)}] | errors]}
               end
             end)
 

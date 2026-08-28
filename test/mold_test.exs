@@ -724,6 +724,17 @@ defmodule MoldTest do
 
       assert Mold.parse(schema, %{"age" => "abc"}) ==
                {:error, [Mold.Error.new(%{reason: :invalid_format, trace: [:age], value: "abc"})]}
+
+      schema =
+        {:map,
+         fields: [
+           city: [type: :string, source: ["profile", "city"], optional: true]
+         ]}
+
+      assert Mold.parse(schema, %{"profile" => %{}}) == {:ok, %{}}
+
+      assert Mold.parse(schema, %{"profile" => 123}) ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_type, trace: [:city], value: 123})]}
     end
 
     test ":map reject_invalid with fields" do
@@ -1363,6 +1374,17 @@ defmodule MoldTest do
                %{}
              ) ==
                {:ok, %{role: "user"}}
+
+      schema =
+        {:map,
+         fields: [
+           city: [type: {:string, default: "unknown"}, source: ["profile", "city"]]
+         ]}
+
+      assert Mold.parse(schema, %{"profile" => %{}}) == {:ok, %{city: "unknown"}}
+
+      assert Mold.parse(schema, %{"profile" => 123}) ==
+               {:error, [Mold.Error.new(%{reason: :unexpected_type, trace: [:city], value: 123})]}
 
       schema =
         {:map, fields: [id: [type: {:string, default: fn -> "generated" end}, source: "id"]]}
