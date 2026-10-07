@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `:atom` with `in:` matches strings against the allowed atoms instead of calling `String.to_existing_atom/1`. An unlisted string now always fails with `{:not_in, allowed}`, with the input string as the error `value`.
+
 ## [0.3.0] - 2026-08-28
 
 ### Changed

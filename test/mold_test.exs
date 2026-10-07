@@ -1347,9 +1347,24 @@ defmodule MoldTest do
 
       # atom
       assert Mold.parse({:atom, in: [:foo, :bar]}, :foo) == {:ok, :foo}
+      assert Mold.parse({:atom, in: [:foo, :bar]}, "foo") == {:ok, :foo}
 
       assert Mold.parse({:atom, in: [:foo, :bar]}, :baz) ==
                {:error, [Mold.Error.new(%{reason: {:not_in, [:foo, :bar]}, value: :baz})]}
+
+      assert Mold.parse({:atom, in: [:foo, :bar]}, "baz") ==
+               {:error, [Mold.Error.new(%{reason: {:not_in, [:foo, :bar]}, value: "baz"})]}
+
+      assert Mold.parse({:atom, in: [:foo, :bar]}, "definitely_not_existing_atom_xyz") ==
+               {:error,
+                [
+                  Mold.Error.new(%{
+                    reason: {:not_in, [:foo, :bar]},
+                    value: "definitely_not_existing_atom_xyz"
+                  })
+                ]}
+
+      assert Mold.parse({:atom, in: MapSet.new([:foo, :bar])}, "bar") == {:ok, :bar}
 
       # float
       assert Mold.parse({:float, in: [1.0, 2.0, 3.0]}, 1.0) == {:ok, 1.0}

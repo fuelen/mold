@@ -175,8 +175,8 @@ defmodule Mold do
 
   @typedoc group: "Types: Basic"
   @typedoc """
-  Atom type. Accepts atoms and strings convertible to existing atoms
-  (via `String.to_existing_atom/1`).
+  Atom type. Accepts atoms and strings.
+  With `in:`, strings are matched against the allowed atoms. Otherwise via `String.to_existing_atom/1`.
   Empty strings are treated as `nil`.
 
   Options:
@@ -191,7 +191,7 @@ defmodule Mold do
       {:error, [%Mold.Error{reason: :unknown_atom, value: "nonexistent_atom_xxx"}]}
 
       iex> Mold.parse({:atom, in: [:draft, :published]}, "archived")
-      {:error, [%Mold.Error{reason: {:not_in, [:draft, :published]}, value: :archived}]}
+      {:error, [%Mold.Error{reason: {:not_in, [:draft, :published]}, value: "archived"}]}
 
       iex> Mold.parse({:atom, default: :draft}, nil)
       {:ok, :draft}
@@ -1011,10 +1011,9 @@ defmodule Mold do
         {:ok, nil}
 
       value when is_binary(value) ->
-        try do
-          {:ok, String.to_existing_atom(value)}
-        rescue
-          ArgumentError -> {:error, [Mold.Error.new(%{reason: :unknown_atom, value: value})]}
+        case Keyword.fetch(opts, :in) do
+          {:ok, allowed} -> find_allowed_atom(value, allowed)
+          :error -> to_existing_atom(value)
         end
     end)
   end
@@ -1318,6 +1317,19 @@ defmodule Mold do
       :error ->
         {:ok, value}
     end
+  end
+
+  defp find_allowed_atom(value, allowed) do
+    case Enum.find(allowed, &(is_atom(&1) and Atom.to_string(&1) == value)) do
+      nil -> {:error, [Mold.Error.new(%{reason: {:not_in, allowed}, value: value})]}
+      atom -> {:ok, atom}
+    end
+  end
+
+  defp to_existing_atom(value) do
+    {:ok, String.to_existing_atom(value)}
+  rescue
+    ArgumentError -> {:error, [Mold.Error.new(%{reason: :unknown_atom, value: value})]}
   end
 
   defp validate_in(value, opts) do

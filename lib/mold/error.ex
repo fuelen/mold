@@ -49,7 +49,7 @@ defmodule Mold.Error do
 
   | Reason | When |
   |---|---|
-  | `:unknown_atom` | String doesn't correspond to an existing atom |
+  | `:unknown_atom` | String doesn't correspond to an existing atom (without `in:`) |
 
   ### Date & Time
 
